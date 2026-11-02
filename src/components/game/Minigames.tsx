@@ -64,10 +64,65 @@ function Boxer({onDone}:{onDone:Done}) {
 
 function Musician({onDone}:{onDone:Done}) {
   const patterns=[[0,2,1,3],[1,3,0,2],[2,0,3,1]];
-  const [round,setRound]=useState(0),[step,setStep]=useState(0),[score,setScore]=useState(0),[message,setMessage]=useState("Repeat the four-note melody.");
   const notes=["C","D","E","G"];
-  const play=(i:number)=>{if(i!==patterns[round][step]){setMessage("Wrong note — try this melody again.");setStep(0);return;}if(step===3){const next=score+1;setScore(next);setMessage("Melody complete!");if(round===2)setTimeout(()=>onDone(next/3),500);else setTimeout(()=>{setRound(r=>r+1);setStep(0);setMessage("New melody. Repeat it.");},700);}else setStep(s=>s+1);};
-  return <div className="space-y-5 py-4"><p className="text-center text-sm text-muted-foreground">Melody {round+1}/3 · Note {step+1}/4</p><p className="text-center font-semibold">{message}</p><div className="grid grid-cols-4 gap-2">{notes.map((n,i)=><button key={n} onClick={()=>play(i)} className={`h-36 rounded-xl border-b-8 text-xl font-bold active:translate-y-1 active:border-b-2 ${i%2?"bg-secondary":"bg-card"}`}>{n}</button>)}</div><p className="text-center text-xs text-muted-foreground">Tap the notes in the displayed sequence: {patterns[round].map(i=>notes[i]).join(" · ")}</p></div>;
+  const [round,setRound]=useState(0),[step,setStep]=useState(0),[score,setScore]=useState(0);
+  const [phase,setPhase]=useState<"listen"|"repeat"|"compose">("listen");
+  const [message,setMessage]=useState("Listen to the melody, then repeat it.");
+  const [composition,setComposition]=useState([0,1,2,3]);
+
+  useEffect(()=>{
+    if(phase!=="listen")return;
+    const timer=window.setTimeout(()=>setPhase("repeat"),1400);
+    return()=>window.clearTimeout(timer);
+  },[phase,round]);
+
+  const play=(i:number)=>{
+    if(phase!=="repeat")return;
+    if(i!==patterns[round][step]){
+      setMessage("Not quite. Start the melody again.");
+      setStep(0);
+      return;
+    }
+    if(step===3){
+      const next=score+1;
+      setScore(next);
+      if(round===2){
+        setPhase("compose");
+        setMessage("Now create your own four-beat melody in the piano roll.");
+      }else{
+        setRound(r=>r+1);
+        setStep(0);
+        setPhase("listen");
+        setMessage("New melody. Listen carefully.");
+      }
+    }else setStep(s=>s+1);
+  };
+
+  const finish=()=>{
+    const variety=new Set(composition).size/4;
+    onDone(Math.max(0,Math.min(1,(score/3+variety)/2)));
+  };
+
+  if(phase==="compose")return <div className="space-y-4 py-3">
+    <div><p className="text-center font-semibold">Piano roll</p><p className="mt-1 text-center text-sm text-muted-foreground">Choose one note in each beat to build an original phrase.</p></div>
+    <div className="grid grid-cols-[42px_repeat(4,minmax(0,1fr))] gap-1">
+      <div/>
+      {composition.map((_,beat)=><div key={beat} className="py-1 text-center text-xs font-semibold text-muted-foreground">Beat {beat+1}</div>)}
+      {notes.map((note,noteIndex)=><React.Fragment key={note}>
+        <div className="flex items-center justify-center text-sm font-bold">{note}</div>
+        {composition.map((selected,beat)=><button key={beat} aria-label={`Beat ${beat+1}, note ${note}`} aria-pressed={selected===noteIndex} onClick={()=>setComposition(old=>old.map((v,i)=>i===beat?noteIndex:v))} className={`h-12 rounded-lg border text-sm font-semibold ${selected===noteIndex?"border-primary bg-primary text-primary-foreground":"bg-secondary"}`}>{selected===noteIndex?"●":""}</button>)}
+      </React.Fragment>)}
+    </div>
+    <p className="text-center text-xs text-muted-foreground">Your phrase: {composition.map(i=>notes[i]).join(" · ")}</p>
+    <Button className="h-12 w-full" onClick={finish}>Finish composition</Button>
+  </div>;
+
+  return <div className="space-y-5 py-4">
+    <p className="text-center text-sm text-muted-foreground">Melody {round+1}/3 · Note {step+1}/4</p>
+    <p className="text-center font-semibold">{phase==="listen"?"Listen: "+patterns[round].map(i=>notes[i]).join(" · "):"Repeat the melody from memory"}</p>
+    <div className="grid grid-cols-4 gap-2">{notes.map((n,i)=><button key={n} disabled={phase!=="repeat"} onClick={()=>play(i)} className={`h-32 rounded-xl border-b-8 text-xl font-bold active:translate-y-1 active:border-b-2 disabled:opacity-60 ${i%2?"bg-secondary":"bg-card"}`}>{n}</button>)}</div>
+    <p className="text-center text-xs text-muted-foreground">Completed melodies: {score}/3</p>
+  </div>;
 }
 
 function Artist({onDone}:{onDone:Done}) {
