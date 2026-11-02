@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ERAS, getProfession } from "@/game/config";
-import { advanceYear, applyTraining, fmtMoney, resolveEvent, runActivity, TRAINING_ENERGY } from "@/game/engine";
+import { advanceYear, applyTraining, fmtMoney, interactWithNpc, resolveEvent, runActivity, TRAINING_ENERGY } from "@/game/engine";
 import { setGame } from "@/game/store";
 import type { GameState, Outcome } from "@/game/types";
 import { Avatar } from "./Avatar";
@@ -22,6 +22,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
 
   const choose = (i: number) => { const n = resolveEvent(g, i); setGame(n); setOutcome(n.lastOutcome); };
   const doActivity = (id: "rest" | "study" | "work" | "socialize" | "volunteer") => { const r = runActivity(g, id); if (r.state !== g) setGame(r.state); setOutcome(r.outcome); };
+  const doNpcAction = (id: string, action: "talk" | "gift" | "help") => { const r = interactWithNpc(g, id, action); if (r.state !== g) setGame(r.state); setOutcome(r.outcome); };
 
   return (
     <div className="flex min-h-dvh flex-col safe-top">
@@ -56,7 +57,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
           <Card key={n.id}>
             <div className="flex justify-between"><span className="font-semibold">{n.name}</span><span className="text-xs capitalize text-muted-foreground">{n.role}{n.alive ? `, ${n.age}` : " (deceased)"}</span></div>
             <div className="text-xs text-muted-foreground">{n.trait}</div>
-            <Progress value={n.relation} className="mt-2 h-2" />
+            <Progress value={n.relation} className="mt-2 h-2" /><div className="mt-3 grid grid-cols-3 gap-2"><Button size="sm" variant="secondary" disabled={!n.alive || !g.alive || g.stats.energy < 5} onClick={() => doNpcAction(n.id, "talk")}>Talk</Button><Button size="sm" variant="secondary" disabled={!n.alive || !g.alive || g.money < (g.era === "oldwest" ? 8 : 250)} onClick={() => doNpcAction(n.id, "gift")}>Gift</Button><Button size="sm" variant="secondary" disabled={!n.alive || !g.alive || g.stats.energy < 12} onClick={() => doNpcAction(n.id, "help")}>Help</Button></div>
           </Card>
         ))}
         {tab === "Money" && <Card><div className="text-sm text-muted-foreground">{era.moneyLabel}</div><div className="text-3xl font-bold">{fmtMoney(g.money)}</div><p className="mt-2 text-sm text-muted-foreground">Education: {g.education}</p></Card>}

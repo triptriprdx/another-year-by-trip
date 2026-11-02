@@ -279,4 +279,45 @@ export function runActivity(prev: GameState, activity: LifeActivity): { state: G
   return finish("You helped out in your community.");
 }
 
+
+export type NpcAction = "talk" | "gift" | "help";
+
+export function interactWithNpc(prev: GameState, npcId: string, action: NpcAction): { state: GameState; outcome: Outcome } {
+  const target = prev.npcs.find((n) => n.id === npcId && n.alive);
+  if (!target || !prev.alive || prev.pending) return { state: prev, outcome: { text: "This interaction is unavailable.", deltas: [] } };
+  const cost = action === "talk" ? 5 : action === "help" ? 12 : 0;
+  const giftCost = prev.era === "oldwest" ? 8 : 250;
+  if (prev.stats.energy < cost) return { state: prev, outcome: { text: "Not enough energy.", deltas: [] } };
+  if (action === "gift" && prev.money < giftCost) return { state: prev, outcome: { text: "You cannot afford a gift right now.", deltas: [] } };
+  const s: GameState = structuredClone(prev);
+  const person = s.npcs.find((n) => n.id === npcId)!;
+  const deltas: { label: string; value: number }[] = [];
+  const before = person.relation;
+  const gain = action === "talk" ? 4 : action === "gift" ? 8 : 9;
+  person.relation = clamp(person.relation + gain);
+  deltas.push({ label: "Relationship", value: person.relation - before });
+  if (cost) {
+    const energy = s.stats.energy;
+    s.stats.energy = clamp(energy - cost);
+    deltas.push({ label: "Energy", value: s.stats.energy - energy });
+  }
+  if (action === "gift") {
+    s.money -= giftCost;
+    deltas.push({ label: "Money", value: -giftCost });
+    const mood = s.stats.mood;
+    s.stats.mood = clamp(mood + 3);
+    deltas.push({ label: "Mood", value: s.stats.mood - mood });
+  }
+  if (action === "help") {
+    const rep = s.stats.reputation;
+    s.stats.reputation = clamp(rep + 1);
+    deltas.push({ label: "Reputation", value: s.stats.reputation - rep });
+  }
+  const text = action === "talk" ? "You had a good conversation with " + person.name + "." : action === "gift" ? "You gave " + person.name + " a thoughtful gift." : "You helped " + person.name + " when they needed it.";
+  const outcome = { text, deltas };
+  s.lastOutcome = outcome;
+  s.history.push({ year: s.year, age: s.age, text });
+  return { state: s, outcome };
+}
+
 export const fmtMoney = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
