@@ -31,5 +31,5 @@ export interface GameState {
   education: "in school" | "graduated" | "dropped out";
   history: HistoryEntry[]; achievements: string[]; pending: PendingEvent | null;
   lastOutcome: Outcome | null; alive: boolean; deathAge?: number;
-  restedThisYear?: boolean; workSessionsThisYear?: number;
+  restedThisYear?: boolean; workSessionsThisYear?: number; homeLevel?: number; transportLevel?: number;
 }
