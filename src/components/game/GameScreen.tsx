@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home } from "lucide-react";
+import { ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -121,12 +121,32 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
         </DialogContent>
       </Dialog>
 
-      <Dialog open={playing} onOpenChange={setPlaying}>
-        <DialogContent className="max-w-[94vw] rounded-2xl">
-          <DialogHeader><DialogTitle>{prof.name} practice</DialogTitle></DialogHeader>
-          {playing && <Minigame prof={g.career.profession} onDone={(score) => { const r = applyTraining(g, prof.id, score); setGame(r.state); setPlaying(false); setOutcome(r.outcome); }} />}
-        </DialogContent>
-      </Dialog>
+      {playing && (
+        <section className="fixed inset-0 z-[100] flex min-h-dvh flex-col overflow-y-auto bg-background safe-top safe-bottom" aria-label="Career mini-game">
+          <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur">
+            <Button variant="ghost" size="icon" className="size-11 shrink-0" onClick={() => setPlaying(false)} aria-label="Exit mini-game"><ArrowLeft /></Button>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-primary">Career mini-game</div>
+              <div className="truncate font-semibold">{({
+                footballer: "Penalty challenge",
+                chess: "Chess puzzles",
+                boxer: "Boxing tactics",
+                musician: "Music studio",
+                artist: "Drawing studio",
+                cowboy: "Frontier reflex test",
+                actor: "Acting challenge",
+              } as Record<string, string>)[g.career.profession]}</div>
+            </div>
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">−{TRAINING_ENERGY} energy</span>
+          </header>
+          <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-6">
+            <p className="mb-5 text-center text-sm text-muted-foreground">Complete the challenge to train your career skill. The year will not advance.</p>
+            <div className="rounded-3xl border bg-card p-4 shadow-sm sm:p-6">
+              <Minigame prof={g.career.profession} onDone={(score) => { const r = applyTraining(g, prof.id, score); setGame(r.state); setPlaying(false); setOutcome(r.outcome); }} />
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
