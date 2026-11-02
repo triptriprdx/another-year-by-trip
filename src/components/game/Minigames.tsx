@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Chess } from "chess.js";
 import { Button } from "@/components/ui/button";
 import type { ProfessionId } from "@/game/config";
 
@@ -22,9 +23,9 @@ function Football({ onDone }: { onDone: Done }) {
   }, []);
   const kick = () => {
     const d = Math.abs(scale - 1);
-    const [g, v] = d < 0.08 ? ["Perfect!", 1] : d < 0.2 ? ["Good", 0.7] : d < 0.4 ? ["Weak", 0.35] : ["Miss", 0];
-    setLabel(g as string);
-    const next = [...kicks, v as number];
+    const v = d < 0.08 ? 1 : d < 0.2 ? 0.7 : d < 0.4 ? 0.35 : 0;
+    setLabel(v === 1 ? "Perfect!" : v >= 0.7 ? "Good" : v > 0 ? "Weak" : "Miss");
+    const next = [...kicks, v];
     setKicks(next);
     start.current = performance.now();
     if (next.length >= 5) setTimeout(() => onDone(next.reduce((a, b) => a + b, 0) / 5), 500);
@@ -41,7 +42,7 @@ function Football({ onDone }: { onDone: Done }) {
   );
 }
 
-/** Cowboy: reaction-time duel. */
+/** Cowboy: abstract reaction-time test, without weapon handling. */
 function Duel({ onDone }: { onDone: Done }) {
   const [phase, setPhase] = useState<"wait" | "go" | "result">("wait");
   const [msg, setMsg] = useState("Steady…");
@@ -52,23 +53,139 @@ function Duel({ onDone }: { onDone: Done }) {
   }, []);
   const tap = () => {
     if (phase === "result") return;
-    if (phase === "wait") { setMsg("Too early! Foul."); setPhase("result"); setTimeout(() => onDone(0), 900); return; }
+    if (phase === "wait") {
+      setMsg("Too early!");
+      setPhase("result");
+      setTimeout(() => onDone(0), 900);
+      return;
+    }
     const ms = Math.round(performance.now() - goAt.current);
     const score = ms < 250 ? 1 : ms < 350 ? 0.7 : ms < 500 ? 0.4 : 0.1;
-    setMsg(`${ms} ms — ${score === 1 ? "Perfect" : score >= 0.7 ? "Good" : score >= 0.4 ? "Weak" : "Too slow"}`);
+    setMsg(`${ms} ms — ${score === 1 ? "Perfect" : score >= 0.7 ? "Good" : score >= 0.4 ? "Okay" : "Too slow"}`);
     setPhase("result");
     setTimeout(() => onDone(score), 1100);
   };
   return (
     <button onPointerDown={tap} className={`grid h-80 w-full place-items-center rounded-3xl no-select ${phase === "go" ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
-      <span className="text-4xl font-extrabold">{phase === "go" ? "DRAW!" : msg}</span>
+      <span className="text-3xl font-extrabold">{phase === "go" ? "NOW!" : msg}</span>
     </button>
+  );
+}
+
+const PIECES: Record<string, string> = {
+  wk: "♔", wq: "♕", wr: "♖", wb: "♗", wn: "♘", wp: "♙",
+  bk: "♚", bq: "♛", br: "♜", bb: "♝", bn: "♞", bp: "♟",
+};
+
+const PUZZLES = [
+  {
+    title: "Mate in one",
+    instruction: "White to move. Find the move that checkmates the black king.",
+    fen: "7k/8/5KQ1/8/8/8/8/8 w - - 0 1",
+    success: (chess: Chess) => chess.isCheckmate(),
+    successText: "Checkmate. You found the winning move.",
+  },
+  {
+    title: "Save your king",
+    instruction: "Black is in check. Find a legal move that gets the king out of check.",
+    fen: "7k/8/5K2/8/8/8/8/7R b - - 0 1",
+    success: (chess: Chess) => !chess.isCheck() && chess.turn() === "w",
+    successText: "The king escaped check.",
+  },
+];
+
+function ChessPuzzles({ onDone }: { onDone: Done }) {
+  const [puzzleIndex, setPuzzleIndex] = useState(0);
+  const [chess, setChess] = useState(() => new Chess(PUZZLES[0].fen));
+  const [selected, setSelected] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [finished, setFinished] = useState(false);
+  const puzzle = PUZZLES[puzzleIndex];
+
+  const tapSquare = (square: string) => {
+    if (finished) return;
+    const piece = chess.get(square as never);
+    if (!selected) {
+      if (piece && piece.color === chess.turn()) setSelected(square);
+      return;
+    }
+    if (selected === square) { setSelected(null); return; }
+    if (piece && piece.color === chess.turn()) { setSelected(square); return; }
+    const next = new Chess(chess.fen());
+    try {
+      next.move({ from: selected, to: square, promotion: "q" });
+    } catch {
+      setMessage("That move is not legal. Try another square.");
+      setSelected(null);
+      return;
+    }
+    setSelected(null);
+    if (puzzle.success(next)) {
+      setChess(next);
+      setMessage(puzzle.successText);
+      setFinished(true);
+      return;
+    }
+    setMessage("Not quite. Try the puzzle again.");
+    setChess(new Chess(puzzle.fen));
+  };
+
+  const reset = () => {
+    setChess(new Chess(puzzle.fen));
+    setSelected(null);
+    setMessage("");
+    setFinished(false);
+  };
+
+  const nextPuzzle = () => {
+    if (puzzleIndex === 0) {
+      setPuzzleIndex(1);
+      setChess(new Chess(PUZZLES[1].fen));
+      setSelected(null);
+      setMessage("");
+      setFinished(false);
+    } else {
+      onDone(1);
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-2">
+      <div>
+        <div className="text-sm font-semibold text-primary">Puzzle {puzzleIndex + 1} / 2</div>
+        <p className="mt-1 text-sm text-muted-foreground">{puzzle.instruction}</p>
+      </div>
+      <div className="mx-auto grid aspect-square w-full max-w-[340px] grid-cols-8 overflow-hidden rounded-xl border">
+        {chess.board().flatMap((row, rank) => row.map((piece, file) => {
+          const square = `${"abcdefgh"[file]}${8 - rank}`;
+          const dark = (rank + file) % 2 === 1;
+          const chosen = selected === square;
+          const symbol = piece ? PIECES[`${piece.color}${piece.type}`] : "";
+          return (
+            <button
+              key={square}
+              onClick={() => tapSquare(square)}
+              aria-label={square}
+              className={`grid aspect-square place-items-center text-[clamp(1.6rem,8vw,2.7rem)] leading-none ${dark ? "bg-[#769656]" : "bg-[#eeeed2]"} ${chosen ? "ring-4 ring-inset ring-yellow-400" : ""}`}
+            >
+              <span className={piece?.color === "b" ? "text-[#202020]" : "text-white [text-shadow:0_1px_3px_#333]"}>{symbol}</span>
+            </button>
+          );
+        }))}
+      </div>
+      {message && <p className={`text-center text-sm ${finished ? "text-primary" : "text-muted-foreground"}`}>{message}</p>}
+      <div className="flex gap-2">
+        <Button variant="secondary" className="h-12 flex-1" onClick={reset}>Restart</Button>
+        {finished && <Button className="h-12 flex-1" onClick={nextPuzzle}>{puzzleIndex === 0 ? "Next puzzle" : "Finish"}</Button>}
+      </div>
+      <p className="text-center text-xs text-muted-foreground">Tap a piece, then tap its destination square.</p>
+    </div>
   );
 }
 
 const Placeholder = ({ onDone }: { onDone: Done }) => (
   <div className="space-y-4 py-6 text-center">
-    <p className="text-muted-foreground">This mini-game is not built yet (TODO). You can log a basic practice session instead.</p>
+    <p className="text-muted-foreground">This mini-game is not built yet. You can log a basic practice session for now.</p>
     <Button className="h-12" onClick={() => onDone(0.4)}>Basic practice</Button>
   </div>
 );
@@ -76,6 +193,6 @@ const Placeholder = ({ onDone }: { onDone: Done }) => (
 export function Minigame({ prof, onDone }: { prof: ProfessionId; onDone: Done }) {
   if (prof === "footballer") return <Football onDone={onDone} />;
   if (prof === "cowboy") return <Duel onDone={onDone} />;
-  // TODO: Chess puzzles (chess.js installed), Boxing, Rhythm + Piano roll, Drawing canvas.
+  if (prof === "chess") return <ChessPuzzles onDone={onDone} />;
   return <Placeholder onDone={onDone} />;
 }
