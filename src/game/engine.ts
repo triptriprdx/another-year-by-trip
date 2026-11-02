@@ -155,6 +155,10 @@ export function advanceYear(prev: GameState): GameState {
     if (lvl === prof.titles.length - 1) unlock(s, `Peak ${prof.name}`);
   }
 
+  // Housing and transport upkeep
+  const upkeep = (s.homeLevel ?? 0) * (s.era === "oldwest" ? 8 : 1200) + (s.transportLevel ?? 0) * (s.era === "oldwest" ? 4 : 600);
+  if (upkeep > 0) { const paid = Math.min(s.money, upkeep); s.money -= paid; notes.push(`Paid ${fmtMoney(paid)} for home and transport upkeep.`); }
+
   // Money
   if (canWork(s)) {
     const salary = Math.round(prof.salaries[s.career.level] * (0.8 + s.stats.reputation / 250));
@@ -279,6 +283,25 @@ export function runActivity(prev: GameState, activity: LifeActivity): { state: G
   return finish("You helped out in your community.");
 }
 
+
+
+export type AssetKind = "home" | "transport";
+export function purchaseAsset(prev: GameState, kind: AssetKind, level: number): { state: GameState; outcome: Outcome } {
+  const current = kind === "home" ? (prev.homeLevel ?? 0) : (prev.transportLevel ?? 0);
+  if (!prev.alive || prev.pending || level !== current + 1 || level > 3) return { state: prev, outcome: { text: "That purchase is unavailable.", deltas: [] } };
+  const oldWest = prev.era === "oldwest";
+  const prices = kind === "home" ? (oldWest ? [0, 250, 800, 2500] : [0, 25000, 90000, 300000]) : (oldWest ? [0, 80, 350, 1200] : [0, 500, 12000, 45000]);
+  const price = prices[level];
+  if (prev.money < price) return { state: prev, outcome: { text: "You do not have enough money.", deltas: [] } };
+  const s: GameState = structuredClone(prev);
+  if (kind === "home") s.homeLevel = level; else s.transportLevel = level;
+  s.money -= price;
+  const label = kind === "home" ? ["", "a modest home", "a comfortable home", "a premium home"][level] : oldWest ? ["", "a sturdy bicycle", "a reliable horse", "a fine carriage"][level] : ["", "a bicycle", "a used car", "a new car"][level];
+  const outcome: Outcome = { text: "You purchased " + label + ".", deltas: [{ label: "Money", value: -price }] };
+  s.lastOutcome = outcome;
+  s.history.push({ year: s.year, age: s.age, text: outcome.text });
+  return { state: s, outcome };
+}
 
 export type NpcAction = "talk" | "gift" | "help";
 
