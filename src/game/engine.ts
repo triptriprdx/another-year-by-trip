@@ -220,18 +220,22 @@ export const TRAINING_ENERGY = 15;
 
 /** Apply a mini-game practice result. Does NOT advance time; costs energy. score 0..1 */
 export function applyTraining(prev: GameState, game: string, score: number): { state: GameState; outcome: Outcome } {
+  if (!prev.alive || prev.pending || prev.stats.energy < TRAINING_ENERGY) {
+    return { state: prev, outcome: { text: "You need more energy to practice.", deltas: [] } };
+  }
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(1, score)) : 0;
   const s: GameState = structuredClone(prev);
   const fx = new Fx(s);
   const diminishing = Math.max(0.35, 1 - s.career.sessionsThisYear * 0.2);
-  const gain = Math.round((1 + score * 5) * diminishing);
+  const gain = Math.round((1 + safeScore * 5) * diminishing);
   fx.stat("energy", -TRAINING_ENERGY).skill(gain);
-  if (score > 0.7) fx.stat("mood", 3).stat("reputation", 1);
-  else if (score < 0.25) fx.stat("mood", -2);
+  if (safeScore > 0.7) fx.stat("mood", 3).stat("reputation", 1);
+  else if (safeScore < 0.25) fx.stat("mood", -2);
   s.career.sessionsThisYear += 1;
   const best = s.career.bestScores[game] ?? 0;
-  if (score > best) s.career.bestScores[game] = Math.round(score * 100) / 100;
-  if (score >= 0.95) unlock(s, `Flawless: ${game}`);
-  return { state: s, outcome: fx.outcome(`Practice session (${Math.round(score * 100)}%).`) };
+  if (safeScore > best) s.career.bestScores[game] = Math.round(safeScore * 100) / 100;
+  if (safeScore >= 0.95) unlock(s, `Flawless: ${game}`);
+  return { state: s, outcome: fx.outcome(`Practice session (${Math.round(safeScore * 100)}%).`) };
 }
 
 export function unlock(s: GameState, name: string) {

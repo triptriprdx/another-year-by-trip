@@ -31,7 +31,7 @@ function Football({ onDone }: { onDone: Done }) {
 function ChessPuzzles({onDone}:{onDone:Done}) {
   const puzzles = [
     {instruction:"White to move. Find checkmate in one move.",fen:"7k/8/5KQ1/8/8/8/8/8 w - - 0 1",win:(c:Chess)=>c.isCheckmate()},
-    {instruction:"Black is in check. Find any legal move that escapes check.",fen:"7k/6pp/5K2/8/8/8/8/7R b - - 0 1",win:(c:Chess)=>!c.isCheck()&&c.turn()==="w"},
+    {instruction:"Black is in check. Find any legal move that escapes check.",fen:"7k/6p1/5K2/8/8/8/8/7R b - - 0 1",win:(c:Chess)=>!c.isCheck()&&c.turn()==="w"},
   ];
   const [idx,setIdx]=useState(0),[game,setGame]=useState(()=>new Chess(puzzles[0].fen)),[from,setFrom]=useState<string|null>(null),[message,setMessage]=useState(""),[done,setDone]=useState(false);
   const p=puzzles[idx];

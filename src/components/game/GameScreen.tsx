@@ -78,9 +78,9 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
         <Button className="mb-3 h-14 w-full rounded-2xl text-lg glow" disabled={!g.alive} onClick={() => setGame(advanceYear(g))}>
           {g.alive ? "Advance Year" : `Life ended at ${g.deathAge}`}
         </Button>
-        <nav className="grid grid-cols-7 gap-1">
+        <nav aria-label="Game sections" className="flex gap-1 overflow-x-auto pb-1">
           {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={cn("h-11 rounded-xl text-xs font-semibold", tab === t ? "bg-secondary text-foreground" : "text-muted-foreground")}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} aria-current={tab === t ? "page" : undefined} className={cn("h-11 min-w-[68px] shrink-0 rounded-xl px-2 text-xs font-semibold", tab === t ? "bg-secondary text-foreground" : "text-muted-foreground")}>{t}</button>
           ))}
         </nav>
       </div>
