@@ -89,6 +89,8 @@ export function createLife({ profession, char, age }: NewLifeInput, seed = Date.
     pending: null,
     lastOutcome: null,
     alive: true,
+    restedThisYear: false,
+    workSessionsThisYear: 0,
   };
   s.year = randInt(s, era.yearRange[0], era.yearRange[1]);
   s.stats.intelligence = randInt(s, 35, 70);
@@ -167,6 +169,8 @@ export function advanceYear(prev: GameState): GameState {
   if (s.money >= (s.era === "oldwest" ? 5000 : 1_000_000)) unlock(s, "Fortune");
 
   s.career.sessionsThisYear = 0;
+  s.restedThisYear = false;
+  s.workSessionsThisYear = 0;
 
   // Mortality
   const risk = s.stats.health <= 0 ? 1 : s.age > 60 ? ((s.age - 60) / 40) ** 2 * (1.4 - s.stats.health / 100) : 0;
@@ -231,6 +235,48 @@ export function unlock(s: GameState, name: string) {
     s.achievements.push(name);
     s.history.push({ year: s.year, age: s.age, text: `Achievement unlocked: ${name}.`, tone: "good" });
   }
+}
+
+
+export type LifeActivity = "rest" | "study" | "work" | "socialize" | "volunteer";
+
+export function runActivity(prev: GameState, activity: LifeActivity): { state: GameState; outcome: Outcome } {
+  if (!prev.alive || prev.pending) return { state: prev, outcome: { text: "Unavailable right now.", deltas: [] } };
+  const s: GameState = structuredClone(prev);
+  const fx = new Fx(s);
+  const finish = (message: string) => {
+    const out = fx.outcome(message);
+    s.lastOutcome = out;
+    s.history.push({ year: s.year, age: s.age, text: message, tone: tone(out) });
+    return { state: s, outcome: out };
+  };
+  if (activity === "rest") {
+    if (s.restedThisYear) return { state: prev, outcome: { text: "You've already rested this year.", deltas: [] } };
+    s.restedThisYear = true;
+    fx.stat("energy", 35).stat("mood", 4);
+    return finish("You took time to rest and recharge.");
+  }
+  const costs = { study: 12, work: 20, socialize: 10, volunteer: 15 } as const;
+  const cost = costs[activity];
+  if (s.stats.energy < cost) return { state: prev, outcome: { text: "Not enough energy.", deltas: [] } };
+  if (activity === "study") {
+    fx.stat("energy", -cost).stat("intelligence", 4);
+    return finish("You spent the afternoon studying.");
+  }
+  if (activity === "work") {
+    if (!canWork(s)) return { state: prev, outcome: { text: "You are not old enough to work yet.", deltas: [] } };
+    if ((s.workSessionsThisYear ?? 0) >= 2) return { state: prev, outcome: { text: "You reached this year's work limit.", deltas: [] } };
+    const pay = s.era === "oldwest" ? randInt(s, 6, 12) : randInt(s, 180, 320);
+    s.workSessionsThisYear = (s.workSessionsThisYear ?? 0) + 1;
+    fx.stat("energy", -cost).money(pay).stat("reputation", 1);
+    return finish("You completed a shift and earned " + fmtMoney(pay) + ".");
+  }
+  if (activity === "socialize") {
+    fx.stat("energy", -cost).stat("mood", 6).rel("friend", 7).rel("family", 2);
+    return finish("You spent time with people close to you.");
+  }
+  fx.stat("energy", -cost).stat("reputation", 3).stat("mood", 2);
+  return finish("You helped out in your community.");
 }
 
 export const fmtMoney = (n: number) => "$" + Math.round(n).toLocaleString("en-US");

@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ERAS, getProfession } from "@/game/config";
-import { advanceYear, applyTraining, fmtMoney, resolveEvent, TRAINING_ENERGY } from "@/game/engine";
+import { advanceYear, applyTraining, fmtMoney, resolveEvent, runActivity, TRAINING_ENERGY } from "@/game/engine";
 import { setGame } from "@/game/store";
 import type { GameState, Outcome } from "@/game/types";
 import { Avatar } from "./Avatar";
 import { Minigame } from "./Minigames";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Life", "Career", "People", "Money", "History"] as const;
+const TABS = ["Life", "Career", "Activities", "People", "Money", "History"] as const;
 
 export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Life");
@@ -21,6 +21,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
   const era = ERAS[g.era];
 
   const choose = (i: number) => { const n = resolveEvent(g, i); setGame(n); setOutcome(n.lastOutcome); };
+  const doActivity = (id: "rest" | "study" | "work" | "socialize" | "volunteer") => { const r = runActivity(g, id); if (r.state !== g) setGame(r.state); setOutcome(r.outcome); };
 
   return (
     <div className="flex min-h-dvh flex-col safe-top">
@@ -50,6 +51,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
             {g.career.milestones.map((m) => <p key={m} className="mt-2 text-sm">{m}</p>)}
           </Card>
         )}
+        {tab === "Activities" && <Card><div className="mb-1 text-lg font-semibold">Your day</div><p className="mb-3 text-sm text-muted-foreground">Actions take place within this year. The calendar only moves when you advance a year.</p><div className="grid gap-2"><ActivityButton title="Rest" detail={g.restedThisYear ? "Already rested this year" : "+35 energy · once per year"} disabled={!!g.restedThisYear || !g.alive} onClick={() => doActivity("rest")} /><ActivityButton title="Study" detail="−12 energy · +4 intelligence" disabled={g.stats.energy < 12 || !g.alive} onClick={() => doActivity("study")} /><ActivityButton title="Work a shift" detail="−20 energy · earn money · max 2 shifts/year" disabled={g.stats.energy < 20 || !((g.age >= 18) || (g.era === "oldwest" && g.age >= 15)) || (g.workSessionsThisYear ?? 0) >= 2 || !g.alive} onClick={() => doActivity("work")} /><ActivityButton title="Socialize" detail="−10 energy · improve mood and relationships" disabled={g.stats.energy < 10 || !g.alive} onClick={() => doActivity("socialize")} /><ActivityButton title="Volunteer" detail="−15 energy · +reputation" disabled={g.stats.energy < 15 || !g.alive} onClick={() => doActivity("volunteer")} /></div></Card>}
         {tab === "People" && g.npcs.map((n) => (
           <Card key={n.id}>
             <div className="flex justify-between"><span className="font-semibold">{n.name}</span><span className="text-xs capitalize text-muted-foreground">{n.role}{n.alive ? `, ${n.age}` : " (deceased)"}</span></div>
@@ -104,6 +106,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
   );
 }
 
+const ActivityButton = ({ title, detail, disabled, onClick }: { title: string; detail: string; disabled: boolean; onClick: () => void }) => <Button variant="secondary" className="h-auto min-h-14 justify-between whitespace-normal py-3 text-left" disabled={disabled} onClick={onClick}><span className="font-semibold">{title}</span><span className="ml-3 text-xs text-muted-foreground">{detail}</span></Button>;
 const Card = ({ children }: { children: React.ReactNode }) => <div className="rounded-2xl border bg-card p-4">{children}</div>;
 const Stat = ({ label, v }: { label: string; v: number }) => (
   <div className="py-1.5"><div className="flex justify-between text-sm capitalize"><span>{label}</span><span className="font-semibold">{v}</span></div><Progress value={v} className="mt-1 h-2" /></div>
