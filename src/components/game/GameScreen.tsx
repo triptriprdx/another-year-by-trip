@@ -75,7 +75,7 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
         <Button className="mb-3 h-14 w-full rounded-2xl text-lg glow" disabled={!g.alive} onClick={() => setGame(advanceYear(g))}>
           {g.alive ? "Advance Year" : `Life ended at ${g.deathAge}`}
         </Button>
-        <nav className="grid grid-cols-5 gap-1">
+        <nav className="grid grid-cols-6 gap-1">
           {TABS.map((t) => (
             <button key={t} onClick={() => setTab(t)} className={cn("h-11 rounded-xl text-xs font-semibold", tab === t ? "bg-secondary text-foreground" : "text-muted-foreground")}>{t}</button>
           ))}
