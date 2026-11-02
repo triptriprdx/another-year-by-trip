@@ -49,8 +49,29 @@ export function GameScreen({ g, onMenu }: { g: GameState; onMenu: () => void }) 
         {tab === "Career" && (
           <Card>
             <div className="text-lg font-semibold">{prof.emoji} {prof.titles[g.career.level]}</div>
-            <p className="text-sm text-muted-foreground">Practice uses {TRAINING_ENERGY} energy and doesn't advance time. Energy: {g.stats.energy}</p>
-            <Button className="mt-3 h-12 w-full" disabled={g.stats.energy < TRAINING_ENERGY || !g.alive} onClick={() => setPlaying(true)}>Practice</Button>
+            <div className="mt-4 rounded-2xl border bg-background p-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-primary">Career mini-game</div>
+              <div className="mt-1 text-base font-semibold">{({
+                footballer: "Penalty challenge",
+                chess: "Chess puzzles",
+                boxer: "Boxing tactics",
+                musician: "Music studio",
+                artist: "Drawing studio",
+                cowboy: "Frontier reflex test",
+                actor: "Acting challenge",
+              } as Record<string, string>)[g.career.profession]}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{({
+                footballer: "Time five shots and build your ball-control skill.",
+                chess: "Solve two chess positions using legal moves.",
+                boxer: "Read five situations and choose a balanced response.",
+                musician: "Repeat melodies, then compose your own four-beat phrase.",
+                artist: "Draw an original sketch on the canvas.",
+                cowboy: "Complete a reaction-time challenge.",
+                actor: "This mini-game is still in development.",
+              } as Record<string, string>)[g.career.profession]}</p>
+              <Button className="mt-3 h-12 w-full" disabled={g.stats.energy < TRAINING_ENERGY || !g.alive || g.career.profession === "actor"} onClick={() => setPlaying(true)}>Start mini-game</Button>
+              <p className="mt-2 text-center text-xs text-muted-foreground">Costs {TRAINING_ENERGY} energy · does not advance the year · Energy: {g.stats.energy}</p>
+            </div>
             {g.career.milestones.map((m) => <p key={m} className="mt-2 text-sm">{m}</p>)}
           </Card>
         )}
