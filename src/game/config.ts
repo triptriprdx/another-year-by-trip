@@ -1,5 +1,5 @@
 // Data-driven game configuration. Rename the game by editing GAME_NAME.
-export const GAME_NAME = "Life Sim";
+export const GAME_NAME = "Another Year";
 export const SAVE_KEY = "lifesim.save.v1";
 export const SETTINGS_KEY = "lifesim.settings.v1";
 
